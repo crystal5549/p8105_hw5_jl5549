@@ -23,22 +23,16 @@ iris_with_missing
 ```{r}
 fill_missing = function(col) {
   if(is.numeric(col)) {
-    for(i in c(1:length(col))){
-      if(is.na(col[i])){
-       col[i] = 0
-       col[i] = mean(col)
-      }
+    col = replace_na(col, mean(col, na.rm = T))
     }
-  }
    else if(is.character(col)) {
-    for(i in 1:length(col)){
-      if(is.na(col[i])){
-       col[i] = 'virginica'
-      }
+    col = replace_na(col, 'virginica')
     }
-  }
+  col
 }
-map(iris_with_missing, fill_missing)
+iris_without_missing = map(iris_with_missing, fill_missing) %>% 
+  bind_rows()
+head(iris_without_missing)
 ```
 
 Problem 2
@@ -118,7 +112,7 @@ datasets2 =
   select(beta1, everything())
 datasets2
 }
-datasets3 = rerun(100, rep()) %>% 
+datasets3 = rerun(10000, rep()) %>% 
   bind_rows() %>% 
   mutate(results = ifelse(p.value > 0.05, 
                              'fail_to_reject',
@@ -129,7 +123,7 @@ datasets4 =
   datasets3 %>% 
   group_by(results, beta1) %>% 
   count() %>% 
-  mutate(prop = n/100) %>% 
+  mutate(prop = n/10000) %>% 
   subset(results == 'reject')
   
 head(datasets4)
