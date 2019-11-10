@@ -1,0 +1,80 @@
+---
+title: "p8105_hw5_jl5549"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(purrr)
+library(ggplot2)
+```
+
+```{r}
+set.seed(10)
+
+iris_with_missing = iris %>% 
+  map_df(~replace(.x, sample(1:150, 20), NA)) %>%
+  mutate(Species = as.character(Species))
+iris_with_missing
+```
+
+```{r}
+fill_missing = function(col) {
+  if(is.numeric(col)) {
+    for(i in c(1:length(col))){
+      if(is.na(col[i])){
+       col[i] = 0
+       col[i] = mean(col)
+      }
+    }
+  }
+   else if(is.character(col)) {
+    for(i in 1:length(col)){
+      if(is.na(col[i])){
+       col[i] = 'virginica'
+      }
+    }
+  }
+}
+map(iris_with_missing, fill_missing)
+```
+
+```{r}
+
+path = list.files('./data')
+mydata=cbind(path)
+mydata = as.tibble(mydata)
+mydata = mydata %>% 
+  mutate( names = path,
+          paths = str_c('./data/', path)
+          ) %>% 
+  select(-path) %>% 
+  pivot_wider(
+             names_from = names,
+             values_from = paths)
+name = colnames(mydata)
+```
+
+```{r}
+data = map_df(.x = mydata, ~read_csv(file = .x)) %>% 
+  mutate(names = name) %>% 
+  select(names, everything()) %>% 
+  separate(names, into= c('group','subject'), sep = '_') %>% 
+  separate(subject, into= c('subjects','trash'), sep = 2) %>%  
+  select(-trash) %>% 
+  pivot_longer(week_1:week_8,
+               values_to = 'datas',
+               names_to = 'week',
+               names_prefix = 'week_') %>% 
+  mutate(group = recode(group, 'con' = 'control arm',
+                        'exp' = 'experimental arm')) %>% 
+  as.tibble()
+data
+data %>% 
+  ggplot(aes(x = week, y = datas, color = subjects))+
+  geom_line(aes(group = subjects)) +
+  facet_grid(~group)
+  
+```
+
