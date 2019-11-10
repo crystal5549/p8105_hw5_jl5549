@@ -8,6 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(purrr)
 library(ggplot2)
+library(dplyr)
 ```
 
 ```{r}
@@ -40,6 +41,7 @@ fill_missing = function(col) {
 map(iris_with_missing, fill_missing)
 ```
 
+Problem 2
 ```{r}
 
 path = list.files('./data')
@@ -61,20 +63,108 @@ data = map_df(.x = mydata, ~read_csv(file = .x)) %>%
   mutate(names = name) %>% 
   select(names, everything()) %>% 
   separate(names, into= c('group','subject'), sep = '_') %>% 
-  separate(subject, into= c('subjects','trash'), sep = 2) %>%  
-  select(-trash) %>% 
+  #separate(subject, into= c('subjects','trash'), sep = 2) %>%  
+ # select(-trash) %>% 
   pivot_longer(week_1:week_8,
                values_to = 'datas',
                names_to = 'week',
                names_prefix = 'week_') %>% 
   mutate(group = recode(group, 'con' = 'control arm',
-                        'exp' = 'experimental arm')) %>% 
+                        'exp' = 'experimental arm'),
+         subject = str_replace(subject, '.csv', '')) %>% 
   as.tibble()
-data
+head(data)
 data %>% 
-  ggplot(aes(x = week, y = datas, color = subjects))+
-  geom_line(aes(group = subjects)) +
+  ggplot(aes(x = week, y = datas, color = subject))+
+  geom_line(aes(group = subject)) +
   facet_grid(~group)
   
+```
+
+
+Problem 3
+```{r}
+#write the simulation function
+sim_regression = function(n=30, beta0 =2 ,beta1){
+  sim_data =tibble(x = rnorm(n),
+                   y = beta0 + beta1*x + rnorm(n, mean = 0, sd = sqrt(50)))
+  ls_fit = lm(y~x, data = sim_data) %>% 
+    broom::tidy() %>% 
+    subset(term == 'x') %>% 
+    select(estimate, p.value) 
+ # tibble(
+  #  bate0_hat = coef(ls_fit)[1],
+   # beta1_hat = coef(ls_fit)[2]
+  #)
+}
+#create 10000 datasets from the function
+datasets = 
+  rerun(10000, sim_regression(30,2,0)) %>% 
+  bind_rows() 
+head(datasets)
+
+```
+
+```{r}
+#repeat above for β1={1,2,3,4,5,6}
+rep = function(){
+datasets2 = vector('list', 6)
+for(i in 1:6) {
+  datasets2[[i]] = sim_regression(30, 2 , i)
+  }  
+datasets2 =
+  bind_rows(datasets2) %>% 
+  mutate(beta1 = c(1:6)) %>% 
+  select(beta1, everything())
+datasets2
+}
+datasets3 = rerun(100, rep()) %>% 
+  bind_rows() %>% 
+  mutate(results = ifelse(p.value > 0.05, 
+                             'fail_to_reject',
+                             'reject')) %>% 
+  select(beta1, results, everything()) 
+
+datasets4 = 
+  datasets3 %>% 
+  group_by(results, beta1) %>% 
+  count() %>% 
+  mutate(prop = n/100) %>% 
+  subset(results == 'reject')
+  
+head(datasets4)
+#plot showing the proportion of times the null was rejected
+datasets4 %>% 
+  ggplot(aes(x = beta1, y = prop))+
+  geom_point()+
+  geom_line()+
+  labs(y= 'power',
+       x = 'true beta1',
+       title = 'the proportion of times the null was rejected')
+```
+We can see when effect size (true beta1 - beta0 )increases, the power increases. 
+```{r}
+datasets3
+#plot showing the average estimate of β 1 and the true β1
+datasets3 %>% 
+  group_by(beta1) %>% 
+  summarize(m = mean(estimate)) %>% 
+  ggplot(aes(x = beta1, y = m))+
+  geom_point()+
+  geom_line()+
+  labs(x = 'true beta1',
+       y = 'average of estimated beta1',
+       title = 'the association b/w the average estimate of β 1 and the true β1')
+#same thing but only for those with the null rejected
+datasets3 %>% 
+  filter(results == 'reject') %>% 
+  group_by(beta1) %>% 
+  summarize(m = mean(estimate)) %>% 
+  ggplot(aes(x = beta1, y = m))+
+  geom_point()+
+  geom_line()+
+  labs(x = 'true beta1',
+       y = 'average of estimated beta1',
+       title = 'the association b/w the average β 1 hat and the true β1 for those with the null rejected ')
 ```
 
