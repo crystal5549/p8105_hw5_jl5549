@@ -75,6 +75,7 @@ data %>%
   
 ```
 
+Datas in the experimental arm group are generally higher than those in the control arm group.
 
 Problem 3
 ```{r}
@@ -162,3 +163,4 @@ datasets3 %>%
        title = 'the association b/w the average β 1 hat and the true β1 for those with the null rejected ')
 ```
 
+The sample average of β̂ 1 across tests for which the null is rejected does not approximately equal to the true value of β1 until β1 gets higher, because of effective size is getting higher too.
